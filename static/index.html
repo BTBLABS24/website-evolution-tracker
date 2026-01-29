@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Evolution Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .input-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.2rem;
+            padding: 20px;
+        }
+
+        .loading-spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .top-bar {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .top-bar h2 {
+            font-size: 2rem;
+            color: #333;
+            margin-bottom: 25px;
+        }
+
+        .top-bar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px;
+            border-radius: 10px;
+            color: white;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .timeline {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .timeline h3 {
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .quarter-card {
+            background: #f8f9fa;
+            border-left: 5px solid #667eea;
+            padding: 30px;
+            margin-bottom: 25px;
+            border-radius: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .quarter-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .quarter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .quarter-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .quarter-date {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .analysis-section {
+            margin-top: 15px;
+        }
+
+        .analysis-item {
+            margin-bottom: 15px;
+        }
+
+        .analysis-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 0.95rem;
+        }
+
+        .analysis-content {
+            color: #555;
+            line-height: 1.6;
+            padding-left: 10px;
+            border-left: 3px solid #e0e0e0;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+        }
+
+        .error {
+            background: #ff6b6b;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .archive-link {
+            display: inline-block;
+            margin-top: 10px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .archive-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Website Evolution Tracker</h1>
+            <p>Discover how any website evolved over time</p>
+        </div>
+
+        <div class="input-section">
+            <div class="input-group">
+                <input
+                    type="text"
+                    id="domainInput"
+                    placeholder="Enter website domain (e.g., www.myadorabook.com)"
+                    value="www.myadorabook.com"
+                />
+                <button id="analyzeBtn" onclick="analyzeWebsite()">Analyze</button>
+            </div>
+            <p style="color: #666; font-size: 0.9rem;">
+                This tool uses Web Archive data and AI to analyze website evolution, pricing changes, and revenue projections.
+            </p>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p>Analyzing Web Archive snapshots and projecting revenue...</p>
+            <p style="font-size: 0.9rem; opacity: 0.8; margin-top: 10px;">This may take 30-60 seconds</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="results" class="results">
+            <div class="top-bar">
+                <h2 id="domainTitle"></h2>
+                <div class="top-bar-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Started</div>
+                        <div class="stat-value" id="startDate">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Distribution Channels</div>
+                        <div class="stat-value" id="channels" style="font-size: 1.2rem;">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Quarters</div>
+                        <div class="stat-value" id="totalQuarters">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="timeline">
+                <h3>📈 Quarterly Evolution</h3>
+                <div id="timelineContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function analyzeWebsite() {
+            const domain = document.getElementById('domainInput').value.trim();
+
+            if (!domain) {
+                alert('Please enter a domain');
+                return;
+            }
+
+            // Show loading, hide results and error
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').classList.remove('show');
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('analyzeBtn').disabled = true;
+
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ domain })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Analysis failed');
+                }
+
+                displayResults(data);
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('error').textContent = `Error: ${error.message}`;
+                document.getElementById('error').style.display = 'block';
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('analyzeBtn').disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            // Update top bar
+            document.getElementById('domainTitle').textContent = data.domain;
+            document.getElementById('startDate').textContent = data.start_date || 'Unknown';
+            document.getElementById('channels').textContent = data.distribution_channels || 'Unknown';
+            document.getElementById('totalQuarters').textContent = data.total_quarters || 0;
+
+            // Build timeline
+            const timelineContent = document.getElementById('timelineContent');
+            timelineContent.innerHTML = '';
+
+            if (!data.timeline || data.timeline.length === 0) {
+                timelineContent.innerHTML = '<p>No timeline data available</p>';
+            } else {
+                data.timeline.forEach((item, index) => {
+                    const card = createQuarterCard(item, index === 0);
+                    timelineContent.appendChild(card);
+                });
+            }
+
+            // Show results
+            document.getElementById('results').classList.add('show');
+        }
+
+        function createQuarterCard(item, isFirst) {
+            const card = document.createElement('div');
+            card.className = 'quarter-card';
+
+            const analysis = item.analysis || {};
+
+            let content = `
+                <div class="quarter-header">
+                    <div class="quarter-title">${item.quarter}</div>
+                    <div class="quarter-date">${item.date}</div>
+                </div>
+                <div class="analysis-section">
+            `;
+
+            // Show different fields for first vs subsequent quarters
+            if (isFirst) {
+                if (analysis.value_proposition) {
+                    content += createAnalysisItem('Value Proposition', analysis.value_proposition);
+                }
+                if (analysis.product_focus) {
+                    content += createAnalysisItem('Product Focus', analysis.product_focus);
+                }
+                if (analysis.marketing_copy) {
+                    content += createAnalysisItem('Marketing Copy', analysis.marketing_copy);
+                }
+                if (analysis.pricing_strategy) {
+                    content += createAnalysisItem('Pricing Strategy', analysis.pricing_strategy);
+                }
+                if (analysis.distribution_channels) {
+                    content += createAnalysisItem('Distribution Channels', analysis.distribution_channels);
+                }
+                if (analysis.revenue_projection) {
+                    content += createAnalysisItem('💰 Revenue Projection', analysis.revenue_projection);
+                }
+            } else {
+                if (analysis.marketing_copy) {
+                    content += createAnalysisItem('Marketing Copy', analysis.marketing_copy);
+                }
+                if (analysis.value_proposition) {
+                    content += createAnalysisItem('Value Proposition', analysis.value_proposition);
+                }
+                if (analysis.product_focus) {
+                    content += createAnalysisItem('Product Focus', analysis.product_focus);
+                }
+                if (analysis.pricing_strategy) {
+                    content += createAnalysisItem('Pricing Strategy', analysis.pricing_strategy);
+                }
+                if (analysis.changes) {
+                    content += createAnalysisItem('📊 Changes from Previous', analysis.changes);
+                }
+                if (analysis.revenue_projection) {
+                    content += createAnalysisItem('💰 Revenue Projection', analysis.revenue_projection);
+                }
+            }
+
+            // If analysis has error or raw analysis
+            if (analysis.error) {
+                content += createAnalysisItem('Error', analysis.error);
+            }
+            if (analysis.raw_analysis) {
+                content += createAnalysisItem('Analysis', analysis.raw_analysis);
+            }
+
+            content += `
+                </div>
+                <a href="https://web.archive.org/web/${item.timestamp}/${item.url}"
+                   target="_blank"
+                   class="archive-link">
+                    View Archive Snapshot →
+                </a>
+            `;
+
+            card.innerHTML = content;
+            return card;
+        }
+
+        function createAnalysisItem(label, content) {
+            if (!content) return '';
+
+            // If content is an object, stringify it
+            if (typeof content === 'object') {
+                content = JSON.stringify(content, null, 2);
+            }
+
+            return `
+                <div class="analysis-item">
+                    <div class="analysis-label">${label}</div>
+                    <div class="analysis-content">${escapeHtml(content)}</div>
+                </div>
+            `;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML.replace(/\n/g, '<br>');
+        }
+
+        // Allow Enter key to trigger analysis
+        document.getElementById('domainInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                analyzeWebsite();
+            }
+        });
+    </script>
+</body>
+</html>
