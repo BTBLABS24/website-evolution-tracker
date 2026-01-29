@@ -13,6 +13,13 @@ import io
 app = Flask(__name__, static_folder='static')
 CORS(app)
 
+# Remove proxy environment variables that might interfere with Anthropic client
+# Railway or other hosting platforms may set these
+for proxy_var in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
+    if proxy_var in os.environ:
+        print(f"Removing proxy env var: {proxy_var}")
+        del os.environ[proxy_var]
+
 # Anthropic API key from environment
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 
@@ -160,7 +167,16 @@ def analyze_with_claude(content, snapshot_date, quarter, is_first=False):
             "revenue_projection": "API key not configured"
         }
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    try:
+        # Initialize Anthropic client with minimal config
+        client = anthropic.Anthropic(
+            api_key=ANTHROPIC_API_KEY
+        )
+    except Exception as e:
+        print(f"Error initializing Anthropic client: {e}")
+        return {
+            "error": f"Failed to initialize AI client: {str(e)}"
+        }
 
     if is_first:
         prompt = f"""Analyze this website snapshot from {snapshot_date} ({quarter}) and extract:
