@@ -16,6 +16,19 @@ CORS(app)
 # Anthropic API key from environment
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 
+# Error handlers
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({'error': 'Not found'}), 404
+
+@app.errorhandler(500)
+def internal_error(e):
+    return jsonify({'error': 'Internal server error', 'message': str(e)}), 500
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    return jsonify({'error': 'An error occurred', 'message': str(e)}), 500
+
 def fetch_wayback_snapshots(domain):
     """Fetch all available snapshots from Wayback Machine"""
     url = "http://web.archive.org/cdx/search/cdx"
@@ -215,82 +228,100 @@ def organize_by_quarter(snapshots):
 def index():
     return send_from_directory('static', 'index.html')
 
+@app.route('/health')
+def health():
+    """Health check endpoint for Railway"""
+    return jsonify({
+        'status': 'healthy',
+        'api_key_configured': bool(ANTHROPIC_API_KEY)
+    })
+
 @app.route('/api/analyze', methods=['POST'])
 def analyze_website():
-    data = request.json
-    domain = data.get('domain', '').strip()
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'Invalid request body'}), 400
 
-    if not domain:
-        return jsonify({'error': 'Domain is required'}), 400
+        domain = data.get('domain', '').strip()
 
-    # Remove protocol if present
-    domain = domain.replace('https://', '').replace('http://', '').rstrip('/')
+        if not domain:
+            return jsonify({'error': 'Domain is required'}), 400
 
-    print(f"Analyzing domain: {domain}")
+        # Remove protocol if present
+        domain = domain.replace('https://', '').replace('http://', '').rstrip('/')
 
-    # Fetch all snapshots
-    snapshots = fetch_wayback_snapshots(domain)
+        print(f"Analyzing domain: {domain}")
 
-    if not snapshots:
-        return jsonify({'error': 'No snapshots found in Web Archive'}), 404
+        # Fetch all snapshots
+        snapshots = fetch_wayback_snapshots(domain)
 
-    print(f"Found {len(snapshots)} snapshots")
+        if not snapshots:
+            return jsonify({'error': 'No snapshots found in Web Archive'}), 404
 
-    # Organize by quarter
-    quarterly = organize_by_quarter(snapshots)
+        print(f"Found {len(snapshots)} snapshots")
 
-    print(f"Organized into {len(quarterly)} quarters")
+        # Organize by quarter
+        quarterly = organize_by_quarter(snapshots)
 
-    # Get earliest snapshot info
-    earliest_quarter = min(quarterly.keys())
-    earliest = quarterly[earliest_quarter]
-    earliest_date = earliest['date']
+        print(f"Organized into {len(quarterly)} quarters")
 
-    # Analyze each quarter
-    timeline_data = []
-    first_analysis = None
+        # Get earliest snapshot info
+        earliest_quarter = min(quarterly.keys())
+        earliest = quarterly[earliest_quarter]
+        earliest_date = earliest['date']
 
-    for i, quarter_key in enumerate(sorted(quarterly.keys())):
-        snapshot = quarterly[quarter_key]
+        # Analyze each quarter
+        timeline_data = []
+        first_analysis = None
 
-        print(f"Analyzing {quarter_key}: {snapshot['timestamp']}")
+        for i, quarter_key in enumerate(sorted(quarterly.keys())):
+            snapshot = quarterly[quarter_key]
 
-        # Fetch the page
-        html = fetch_archived_page(snapshot['url'], snapshot['timestamp'])
+            print(f"Analyzing {quarter_key}: {snapshot['timestamp']}")
 
-        if html:
-            text_content = extract_text_content(html)
+            # Fetch the page
+            html = fetch_archived_page(snapshot['url'], snapshot['timestamp'])
 
-            # Analyze with Claude
-            is_first = (i == 0)
-            analysis = analyze_with_claude(text_content, snapshot['date'], quarter_key, is_first)
+            if html:
+                text_content = extract_text_content(html)
 
-            if is_first:
-                first_analysis = analysis
+                # Analyze with Claude
+                is_first = (i == 0)
+                analysis = analyze_with_claude(text_content, snapshot['date'], quarter_key, is_first)
 
-            timeline_data.append({
-                'quarter': quarter_key,
-                'timestamp': snapshot['timestamp'],
-                'date': snapshot['date'],
-                'url': snapshot['url'],
-                'analysis': analysis
-            })
-        else:
-            print(f"Failed to fetch {quarter_key}")
+                if is_first:
+                    first_analysis = analysis
 
-    # Extract top-level info
-    start_date = earliest_date
-    distribution_channels = first_analysis.get('distribution_channels', 'Unknown') if first_analysis else 'Unknown'
+                timeline_data.append({
+                    'quarter': quarter_key,
+                    'timestamp': snapshot['timestamp'],
+                    'date': snapshot['date'],
+                    'url': snapshot['url'],
+                    'analysis': analysis
+                })
+            else:
+                print(f"Failed to fetch {quarter_key}")
 
-    result = {
-        'domain': domain,
-        'start_date': start_date,
-        'distribution_channels': distribution_channels,
-        'total_quarters': len(quarterly),
-        'timeline': timeline_data
-    }
+        # Extract top-level info
+        start_date = earliest_date
+        distribution_channels = first_analysis.get('distribution_channels', 'Unknown') if first_analysis else 'Unknown'
 
-    return jsonify(result)
+        result = {
+            'domain': domain,
+            'start_date': start_date,
+            'distribution_channels': distribution_channels,
+            'total_quarters': len(quarterly),
+            'timeline': timeline_data
+        }
+
+        return jsonify(result)
+
+    except Exception as e:
+        print(f"Error in analyze_website: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Analysis failed', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
