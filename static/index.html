@@ -336,14 +336,33 @@
                 const data = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(data.error || 'Analysis failed');
+                    const error = new Error(data.error || 'Analysis failed');
+                    error.data = data;
+                    throw error;
                 }
 
                 displayResults(data);
 
             } catch (error) {
                 console.error('Error:', error);
-                document.getElementById('error').textContent = `Error: ${error.message}`;
+
+                // Format error message with suggestions if available
+                let errorMsg = `<strong>Error:</strong> ${error.message}`;
+
+                if (error.data) {
+                    if (error.data.message) {
+                        errorMsg += `<br><br>${error.data.message}`;
+                    }
+                    if (error.data.suggestions && error.data.suggestions.length > 0) {
+                        errorMsg += '<br><br><strong>Suggestions:</strong><ul style="margin: 10px 0; padding-left: 20px;">';
+                        error.data.suggestions.forEach(suggestion => {
+                            errorMsg += `<li>${suggestion}</li>`;
+                        });
+                        errorMsg += '</ul>';
+                    }
+                }
+
+                document.getElementById('error').innerHTML = errorMsg;
                 document.getElementById('error').style.display = 'block';
             } finally {
                 document.getElementById('loading').style.display = 'none';

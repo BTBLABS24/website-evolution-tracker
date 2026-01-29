@@ -32,26 +32,58 @@ def handle_exception(e):
 def fetch_wayback_snapshots(domain):
     """Fetch all available snapshots from Wayback Machine"""
     url = "http://web.archive.org/cdx/search/cdx"
-    params = {
-        'url': f'{domain}/',
-        'matchType': 'exact',
-        'output': 'json',
-        'fl': 'timestamp,original,statuscode',
-        'filter': 'statuscode:200'
-    }
 
-    try:
-        response = requests.get(url, params=params, timeout=30)
-        response.raise_for_status()
-        data = response.json()
+    # Try multiple variations of the domain
+    domain_variations = [
+        f'{domain}/',      # with trailing slash
+        f'{domain}',       # without trailing slash
+    ]
 
-        # Skip header row
-        if data:
-            return data[1:]
-        return []
-    except Exception as e:
-        print(f"Error fetching snapshots: {e}")
-        return []
+    # Also try with http:// prefix
+    if not domain.startswith('http'):
+        domain_variations.extend([
+            f'http://{domain}',
+            f'http://{domain}/',
+            f'https://{domain}',
+            f'https://{domain}/',
+        ])
+
+    all_snapshots = []
+
+    for domain_var in domain_variations:
+        params = {
+            'url': domain_var,
+            'matchType': 'exact',
+            'output': 'json',
+            'fl': 'timestamp,original,statuscode',
+            'filter': 'statuscode:200'
+        }
+
+        try:
+            print(f"Trying to fetch snapshots for: {domain_var}")
+            response = requests.get(url, params=params, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+
+            # Skip header row
+            if data and len(data) > 1:
+                snapshots = data[1:]
+                print(f"Found {len(snapshots)} snapshots for {domain_var}")
+                all_snapshots.extend(snapshots)
+        except Exception as e:
+            print(f"No snapshots for {domain_var}: {e}")
+            continue
+
+    # Remove duplicates based on timestamp
+    seen_timestamps = set()
+    unique_snapshots = []
+    for snapshot in all_snapshots:
+        timestamp = snapshot[0]
+        if timestamp not in seen_timestamps:
+            seen_timestamps.add(timestamp)
+            unique_snapshots.append(snapshot)
+
+    return unique_snapshots
 
 def fetch_archived_page(url, timestamp):
     """Fetch the HTML content of an archived page"""
@@ -257,7 +289,16 @@ def analyze_website():
         snapshots = fetch_wayback_snapshots(domain)
 
         if not snapshots:
-            return jsonify({'error': 'No snapshots found in Web Archive'}), 404
+            return jsonify({
+                'error': 'No snapshots found in Web Archive',
+                'message': f'The domain "{domain}" has no archived snapshots. Try a different domain or check if it exists in https://web.archive.org',
+                'suggestions': [
+                    'Make sure the domain is spelled correctly',
+                    'Try with or without "www" prefix',
+                    'Check if the site exists in Web Archive manually',
+                    'Some newer sites may not have been archived yet'
+                ]
+            }), 404
 
         print(f"Found {len(snapshots)} snapshots")
 
